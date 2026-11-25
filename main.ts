@@ -34,6 +34,7 @@ const RSI_BUY = 25;
 const RSI_SELL = 55;
 const HOLD_MAX_BARS = 48;
 const MAX_SLIPPAGE_BPS = 10_000;
+const POSITION_EQUITY_DIVISOR = 4n; // 25% of equity per new position
 
 const SYMBOLS = ['FARTCOIN', 'JITOSOL', 'POPCAT', 'RAY', 'SOL', 'WETH', 'WIF'] as const;
 type Symbol = (typeof SYMBOLS)[number];
@@ -87,9 +88,10 @@ await runBars({
       if (state.positions.has(symbol) || sold.has(symbol)) continue;
       const r = rsi(history.get(symbol)!);
       if (r === null || r > RSI_BUY) continue;
-      const byEquity = state.equity / 4n;
+      const byEquity = state.equity / POSITION_EQUITY_DIVISOR;
       let notional = byEquity < state.weightRoom(symbol) ? byEquity : state.weightRoom(symbol);
       if (notional > cashLeft) notional = cashLeft;
+      if (notional <= 0n) continue; // nothing to deploy from zero equity
       if (notional < BigInt(state.hello.fees.min_notional_quote_units)) continue;
       orders.push({ side: 'buy', symbol, notional_quote_units: notional, max_slippage_bps: MAX_SLIPPAGE_BPS });
       cashLeft -= notional;
